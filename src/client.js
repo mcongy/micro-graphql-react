@@ -10,6 +10,7 @@ export default class Client {
       props.cacheSize = 0;
     }
 
+    this.fetchFunction = props.fetchFunction;
     Object.assign(this, props);
     this.caches = new Map([]);
     this.mutationListeners = new Set([]);
@@ -32,14 +33,17 @@ export default class Client {
   setCache(query, cache) {
     this.caches.set(query, cache);
   }
-  runQuery(query, variables) {
-    return this.runUri(this.getGraphqlQuery({ query, variables }));
-  }
   runUri(uri) {
-    return fetch(uri, this.fetchOptions || void 0).then(resp => resp.json());
+    return this.fetchFunction({ endpoint: uri, method: "GET" }).then(resp =>
+      resp.json()
+    );
   }
   getGraphqlQuery({ query, variables }) {
-    return `${this.endpoint}?query=${encodeURIComponent(query)}${typeof variables === "object" ? `&variables=${encodeURIComponent(JSON.stringify(variables))}` : ""}`;
+    return `${this.endpoint}?query=${encodeURIComponent(query)}${
+      typeof variables === "object"
+        ? `&variables=${encodeURIComponent(JSON.stringify(variables))}`
+        : ""
+    }`;
   }
   subscribeMutation(subscription, options = {}) {
     if (!Array.isArray(subscription)) {
@@ -73,34 +77,48 @@ export default class Client {
     return Promise.resolve(this.runMutation(mutation, variables)).then(resp => {
       let mutationKeys = Object.keys(resp);
       let mutationKeysLookup = new Set(mutationKeys);
-      [...this.mutationListeners].forEach(({ subscription, options: { currentResults, ...rest } }) => {
-        subscription.forEach(singleSubscription => {
-          if (typeof singleSubscription.when === "string") {
-            if (mutationKeysLookup.has(singleSubscription.when)) {
-              singleSubscription.run({ currentResults: currentResults(), ...rest }, resp, variables);
+      [...this.mutationListeners].forEach(
+        ({ subscription, options: { currentResults, ...rest } }) => {
+          subscription.forEach(singleSubscription => {
+            if (typeof singleSubscription.when === "string") {
+              if (mutationKeysLookup.has(singleSubscription.when)) {
+                singleSubscription.run(
+                  { currentResults: currentResults(), ...rest },
+                  resp,
+                  variables
+                );
+              }
+            } else if (
+              typeof singleSubscription.when === "object" &&
+              singleSubscription.when.test
+            ) {
+              if (
+                [...mutationKeysLookup].some(k =>
+                  singleSubscription.when.test(k)
+                )
+              ) {
+                singleSubscription.run(
+                  { currentResults: currentResults(), ...rest },
+                  resp,
+                  variables
+                );
+              }
             }
-          } else if (typeof singleSubscription.when === "object" && singleSubscription.when.test) {
-            if ([...mutationKeysLookup].some(k => singleSubscription.when.test(k))) {
-              singleSubscription.run({ currentResults: currentResults(), ...rest }, resp, variables);
-            }
-          }
-        });
-      });
+          });
+        }
+      );
       return resp;
     });
   }
-  runMutation(mutation, variables) {
-    let { headers = {}, ...otherOptions } = this.fetchOptions;
-    return fetch(this.endpoint, {
-      method: "post",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        ...headers
-      },
-      ...otherOptions,
+  runQuery(query, variables) {
+    return this.runUri(this.getGraphqlQuery({ query, variables }));
+  }
+  runMutation(query, variables) {
+    return this.fetchFunction({
+      endpoint: this.endpoint,
+      method: "POST",
       body: JSON.stringify({
-        query: mutation,
+        query,
         variables
       })
     })
