@@ -75,6 +75,7 @@ export class Client {
   setCache(query: string, cache: Cache): void;
   subscribeMutation(subscription, options?): () => void;
   forceUpdate(query): void;
+  clearCache(): void;
 }
 
 type BuildQueryOptions = {
