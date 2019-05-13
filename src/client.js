@@ -34,10 +34,7 @@ export default class Client {
     this.caches.set(query, cache);
   }
   clearCache() {
-    this.caches.forEach(cache => {
-      cache.clearCache();
-    });
-    this.forceUpdate();
+    this.caches.clear();
   }
   runUri(uri) {
     return this.fetchFunction({ endpoint: uri, method: "GET" }).then(resp =>
