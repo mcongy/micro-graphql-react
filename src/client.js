@@ -33,6 +33,11 @@ export default class Client {
   setCache(query, cache) {
     this.caches.set(query, cache);
   }
+  clearCache() {
+    this.caches.forEach(([_cacheName, cache]) => {
+      cache.clearCache();
+    });
+  }
   runUri(uri) {
     return this.fetchFunction({ endpoint: uri, method: "GET" }).then(resp =>
       resp.json()
