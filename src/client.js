@@ -34,7 +34,7 @@ export default class Client {
     this.caches.set(query, cache);
   }
   clearCache() {
-    this.caches.forEach(([_cacheName, cache]) => {
+    this.caches.forEach(cache => {
       cache.clearCache();
     });
     this.forceUpdate();
